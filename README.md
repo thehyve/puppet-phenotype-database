@@ -1,15 +1,14 @@
 puppet-phenotype-database
 =========================
 
-Puppet module to install Phenotype Database application suite
+Puppet module to install Phenotype Database application suite.
 
+Basically an automation of the steps described in https://github.com/thehyve/GSCF/blob/master/INSTALLATION.md
 
 Known issues:
 
-With CentOS 5 the tomcat package won't work as yum can't find "tomcat6" package...
-Workaround for now: 
-http://wavded.tumblr.com/post/258713913/installing-tomcat-6-on-centos-5
+With CentOS 5 the tomcat package step won't work.
 
 CentOS 6 already has Tomcat 6 in its repository. This means the script should work.
 
-Actually, more issues are there with CentOS 5, so this version of CentOS is NOT supported.
+Tested with Ubuntu 12.10
