@@ -11,7 +11,7 @@
 # $adminuserpwd:: (optional, defaults to 'admin123') app admin password
 # $modules:: (optional, defaults to ['sam', 'metabolomics'] ) array with list of extra modules to install
 #
-define phenotypedb::phenotypedbapp (
+class phenotypedb::phenotypedbapp (
     $databasename     = 'gscfwww',
     $dbusername       = 'gscf',
     $dbuserpassword,
