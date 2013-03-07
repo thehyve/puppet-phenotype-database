@@ -32,17 +32,26 @@ class phenotypedb::phenotypedbapp (
         password => $dbuserpassword,
     }
 
-    # ==========Create a .grails directory===============
-    # Grails uses a cache folder, which should be created if the tomcat user cannot create it
-    #    root@nmcdsp:~#
-    #    mkdir -p /usr/share/tomcat6/.grails;
-    #    chown tomcat6 /usr/share/tomcat6/.grails;
-    #    chmod -R gou+rwx /usr/share/tomcat6/.grails
-
-    file { '/usr/share/tomcat6/.grails':
-        ensure => 'directory',
-        mode   => '777',
+    # Change tomcat6 home to /home/tomcat6
+    # This really should be changed to use tomcat::webapp, with a dedicated
+    # user per application, as we for trait1 stuff
+    # In fact, the tomcat class ensures that the tomcat6 sevice is disabled and
+    # stopped, so every time the puppet agent is run, the application goes
+    # down...
+    # An additional problem is that the AJP connector has to be manually
+    # activated; tomcat::webapp creates a server.xml with AJP already activated
+    $tomcat_home = '/home/tomcat6'
+    user { 'tomcat6':
+        home       => $tomcat_home,
+        ensure     => present,
+        managehome => true
+    }
+    ->
+    /* managehome doen't seem to create the home is the user already exists */
+    file { $tomcat_home:
+        ensure => directory,
         owner  => 'tomcat6',
+        mode   => '755',
     }
 
     # =========Install GSCF===============================
@@ -85,15 +94,14 @@ class phenotypedb::phenotypedbapp (
 
     # ========= Set up the application configuration =================
 
-    file { '/usr/share/tomcat6/.gscf':
+    file { "$tomcat_home/.gscf":
         ensure => 'directory',
-        mode   => '777',
+        mode   => '700',
         owner  => 'tomcat6',
     }
-    file { '/usr/share/tomcat6/.gscf/production.properties':
+    file { "$tomcat_home/.gscf/production.properties":
         ensure  => file,
         content => template("phenotypedb/production.properties"),
-        require => File['/usr/share/tomcat6/.gscf']
     }
 
   # install modules (sam, metabolomics, etc)
