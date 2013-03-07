@@ -33,6 +33,9 @@ class phenotypedb ($localBioPortal = false) {
   # install postgresql aspect:
   class {'postgresql':  }   
 
+  package { 'libnotify-bin':
+      ensure => 'installed'
+  }
 
   # if localBioPortal is true, install this locally as well:
   if $localBioPortal {
