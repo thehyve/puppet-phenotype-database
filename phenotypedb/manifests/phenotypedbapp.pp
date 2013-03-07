@@ -19,7 +19,11 @@ class phenotypedb::phenotypedbapp (
     $vhost_servername,
     $adminuserpwd     = 'admin123',
     $modules          = ['sam','metabolomics'],
-    $phenotypedbwarid = '17'
+    $phenotypedbwarid = '17',
+    $system_user      = 'phenotype',
+    $number           = 0,
+    $memory           = '512m',
+    $webapp_base      = '/home'
 ) {
     require phenotypedb
     require apache::mod::proxy_http
@@ -32,47 +36,41 @@ class phenotypedb::phenotypedbapp (
         password => $dbuserpassword,
     }
 
-    # Change tomcat6 home to /home/tomcat6
-    # This really should be changed to use tomcat::webapp, with a dedicated
-    # user per application, as we for trait1 stuff
-    # In fact, the tomcat class ensures that the tomcat6 sevice is disabled and
-    # stopped, so every time the puppet agent is run, the application goes
-    # down...
-    # An additional problem is that the AJP connector has to be manually
-    # activated; tomcat::webapp creates a server.xml with AJP already activated
-    $tomcat_home = '/home/tomcat6'
-    user { 'tomcat6':
-        home       => $tomcat_home,
-        ensure     => present,
-        managehome => true
-    }
-    ->
-    /* managehome doen't seem to create the home is the user already exists */
-    file { $tomcat_home:
-        ensure => directory,
-        owner  => 'tomcat6',
-        mode   => '755',
-    }
+    $tomcat_home = "/home/$system_user"
 
-    # =========Install GSCF===============================
-    # download the phenotypedbapp .war
-    # copy it to the right tomcat folder:
-    #        root@nmcdsp:~# cd /var/lib/tomcat6/webapps/
-    $download_dir   = "/var/lib/tomcat6/webapps"
-    $downloaded_war = "${download_dir}/gscf-${phenotypedbwarid}.war"
+
+    $temporary_dir  = "/tmp"
+    $deployment_dir = "$tomcat_home/tomcat/webapps"
+    $downloaded_war = "$temporary_dir/gscf-${phenotypedbwarid}.war"
+    $deployed_war   = "$deployment_dir/gscf-${phenotypedbwarid}.war"
     $download_url   = "https://trac.nbic.nl/gscf/downloads/${phenotypedbwarid}"
 
-    exec { "download-phenotypedbapp-war":
-        command => "/usr/bin/wget -O ${downloaded_war} ${download_url}",
-        creates => $downloaded_war,
-        timeout => 1200,
+    tomcat::webapp { $system_user:
+        username        => $system_user,
+        webapp_base     => $webapp_base,
+        number          => $number,
+        java_opts       => "-server -Dorg.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER=true -Dmail.mime.decodeparameters=true -Xms${memory} -Xmx${memory} -XX:MaxPermSize=128m -Djava.awt.headless=true",
     }
-    # set the correct rights:
-    #   chown tomcat6.tomcat6 *.war;
-    #   chmod gou+rx *.war
-    file { $downloaded_war:
-        owner  => 'tomcat6',
-        mode   => '755',
+    ->
+    file { "$tomcat_home/.gscf":
+        ensure  => 'directory',
+        mode    => '700',
+        owner   => $system_user,
+    }
+    ->
+    file { "$tomcat_home/.gscf/production.properties":
+        ensure  => file,
+        content => template("phenotypedb/production.properties"),
+    }
+    ->
+    exec { "download-phenotypedbapp-war":
+        # don't download it directly to webapps because tomcat will start
+        # reading the war before the download is finished and error out on a
+        # 'corrupt' zip file
+        command => "/usr/bin/wget -O '${downloaded_war}' '${download_url}' \
+                   && mv '${downloaded_war}' '${deployed_war}'",
+        creates => $deployed_war,
+        timeout => 1200,
     }
 
     apache::mod { 'rewrite': }
@@ -92,17 +90,6 @@ class phenotypedb::phenotypedbapp (
         template   => 'phenotypedb/gscf_site_apache.conf.erb',
     }
 
-    # ========= Set up the application configuration =================
-
-    file { "$tomcat_home/.gscf":
-        ensure => 'directory',
-        mode   => '700',
-        owner  => 'tomcat6',
-    }
-    file { "$tomcat_home/.gscf/production.properties":
-        ensure  => file,
-        content => template("phenotypedb/production.properties"),
-    }
 
   # install modules (sam, metabolomics, etc)
   # TODO

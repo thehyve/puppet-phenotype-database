@@ -44,6 +44,6 @@ NameVirtualHost <%= vhost_name %>:<%= port %>
     </Location>
 
     <Proxy balancer://gscf-cluster>
-        BalancerMember ajp://localhost:8009
+        BalancerMember ajp://localhost:8<%= scope.lookupvar('phenotypedb::phenotypedbapp::number') %>09
     </Proxy>
 </VirtualHost>
