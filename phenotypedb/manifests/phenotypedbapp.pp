@@ -15,7 +15,8 @@ class phenotypedb::phenotypedbapp (
     $databasename     = 'gscfwww',
     $dbusername       = 'gscf',
     $dbuserpassword,
-    $appurl,
+    $appurl,          /* include final slash */
+    $vhost_servername,
     $adminuserpwd     = 'admin123',
     $modules          = ['sam','metabolomics'],
     $phenotypedbwarid = '17'
@@ -76,17 +77,11 @@ class phenotypedb::phenotypedbapp (
     apache::vhost::proxy { 'gscf':
         servername => $vhost_servername,
         port       => 80,
-        dest       => "http://localhost:8080/gscf-${phenotypedbwarid}",
-        vhost_name => $vhost_name,
+        dest       => "balancer://gscf-cluster/gscf-$phenotypedbwarid/",
+        #dest       => "http://localhost:8080/gscf-${phenotypedbwarid}",
+        vhost_name => '*',
+        template   => 'phenotypedb/gscf_site_apache.conf.erb',
     }
-
-    # this file is needed anyway given other settings are there (e.g. the balancer settings)
-    file { '/etc/apache2/sites-available/gscf_site_apache.conf':
-        ensure  => file,
-        content => template("phenotypedb/gscf_site_apache.conf"),
-    }
-    # TODO - check for the correct file...conf
-
 
     # ========= Set up the application configuration =================
 
