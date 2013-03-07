@@ -20,6 +20,9 @@ class phenotypedb::phenotypedbapp (
     $modules          = ['sam','metabolomics'],
     $phenotypedbwarid = '17'
 ) {
+    require phenotypedb
+    require apache::mod::proxy_http
+    include postgresql::server
 
     # make database instance in postgresql with name $databasename,
     # and add the user defined in $dbusername
@@ -62,20 +65,15 @@ class phenotypedb::phenotypedbapp (
         mode   => '755',
     }
 
-
-    # install additional parts in  tomcat, apache,  with the correct configurations
-
-    #   =========Set Up Apache to proxy / rewrite request===============
-    #
-    #   As tomcat is running (by default) on 8080, it is not very professional to have your application run on
-    #   http://test.mysite.com:8080/gscf-0.6.6-nmcdsptest. Instead http://test.mysite.com is preferable.
-    #   Also it is convenient to be able to add load balancing functionality in case you expect high load.
-    #   Apache can solve these issues.
-    $vhost_servername  = "gscf.thehyve.net"
-    $vhost_serveralias = "test.gscf.thehyve.net"
-    $vhost_name        = $vhost_serveralias
-
-    apache::vhost::proxy { $vhost_name:
+    apache::mod { 'rewrite': }
+    ->
+    apache::mod { 'proxy_balancer': }
+    ->
+    apache::mod { 'proxy_ajp': }
+    ->
+    apache::mod { 'proxy_html': }
+    ->
+    apache::vhost::proxy { 'gscf':
         servername => $vhost_servername,
         port       => 80,
         dest       => "http://localhost:8080/gscf-${phenotypedbwarid}",
