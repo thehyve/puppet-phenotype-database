@@ -70,6 +70,7 @@ class phenotypedb::phenotypedbapp (
         # reading the war before the download is finished and error out on a
         # 'corrupt' zip file
         command => "/usr/bin/wget -O '${downloaded_war}' '${download_url}' \
+                   && find '$deployment_dir' -name '*.war' -delete \
                    && mv '${downloaded_war}' '${deployed_war}'",
         creates => $deployed_war,
         timeout => 1200,
