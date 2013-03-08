@@ -34,7 +34,6 @@ NameVirtualHost <%= vhost_name %>:<%= port %>
 
     ProxyStatus On
     ProxyPass / <%= dest %> stickysession=JSESSIONID|jsessionid nofailover=On
-    ProxyPassReverse / <%= dest %>
     ProxyPassReverseCookiePath /gscf-<%= scope.lookupvar('phenotypedb::phenotypedbapp::phenotypedbwarid') %> /
 
     <Location />
