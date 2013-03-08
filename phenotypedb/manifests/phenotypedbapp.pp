@@ -61,6 +61,8 @@ class phenotypedb::phenotypedbapp (
     file { "$tomcat_home/.gscf/production.properties":
         ensure  => file,
         content => template("phenotypedb/production.properties"),
+        mode    => '600',
+        owner   => $system_user,
     }
     ->
     exec { "download-phenotypedbapp-war":
