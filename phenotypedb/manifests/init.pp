@@ -24,9 +24,18 @@
 #
 class phenotypedb ($localBioPortal = false) {
 
-  # install apache aspect:
-  class {'apache':  } 
-  
+  # install apache aspect and necessary modules:
+  class {'apache':  }
+
+  class {'apache_ext::mod::rewrite': }
+    ->
+  class {'apache_ext::mod::proxy::balancer': }
+    ->
+  class {'apache_ext::mod::proxy::ajp': }
+    ->
+  class {'apache_ext::mod::proxy::html': }
+    
+    
   # install tomcat aspect:
   class {'tomcat':  } 
     
