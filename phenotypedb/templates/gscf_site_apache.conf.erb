@@ -1,16 +1,16 @@
-NameVirtualHost <%= vhost_name %>:<%= port %>
-<VirtualHost <%= vhost_name %>:<%= port %>>
-    ServerName <%= srvname %>
+NameVirtualHost <%= vhost_name %>:<%= vhost_port %>
+<VirtualHost <%= vhost_name %>:<%= vhost_port %>>
+    ServerName <%= vhost_servername %>
     <% if serveraliases.is_a? Array %>
         <% serveraliases.each do |name| %><%= "  ServerAlias #{name}\n" %><% end %>
     <% elsif serveraliases != '' %>
         <%= "  ServerAlias #{serveraliases}" %>
     <% end %>
 
-    ErrorLog /var/log/<%= scope.lookupvar("apache::params::apache_name") %>/<%= name %>_error.log
+    ErrorLog /var/log/<%= scope.lookupvar("apache::params::apache_name") %>/<%= vhost_servername %><%= number %>_error.log
     LogLevel warn
-    <% if access_log -%>
-        CustomLog /var/log/<%= scope.lookupvar("apache::params::apache_name") %>/<%= name %>_access.log combined
+    <% if vhost_accessLog -%>
+        CustomLog /var/log/<%= scope.lookupvar("apache::params::apache_name") %>/<%= vhost_servername %><%= number %>_access.log combined
     <% end -%>
 
     RewriteEngine on
@@ -21,8 +21,8 @@ NameVirtualHost <%= vhost_name %>:<%= port %>
     # domain which may lead to two (or more) usersessions
     # depending on the number of serveraliases)
     # see gscf ticket #321
-    RewriteCond %{HTTP_HOST} !^<%= srvname %>$ [NC]
-    RewriteRule .* http://<%= srvname %>$0 [R=301,QSA,L]
+    RewriteCond %{HTTP_HOST} !^<%= vhost_servername %>$ [NC]
+    RewriteRule .* http://<%= vhost_servername %>$0 [R=301,QSA,L]
 
     # rewrite the /gscf-a.b.c-environment/ part of the url                
     RewriteRule ^/gscf-[^/]+/(.*) /$1 [L,PT,NC,NE]
@@ -33,16 +33,16 @@ NameVirtualHost <%= vhost_name %>:<%= port %>
     </Proxy>
 
     ProxyStatus On
-    ProxyPass / <%= dest %> stickysession=JSESSIONID|jsessionid nofailover=On
-    ProxyPassReverseCookiePath /gscf-<%= scope.lookupvar('phenotypedb::phenotypedbapp::phenotypedbwarid') %> /
+    ProxyPass / <%= vhost_dest %> stickysession=JSESSIONID|jsessionid nofailover=On
+    ProxyPassReverseCookiePath /gscf-<%= phenotypedbwarid %> /
 
     <Location />
         SetOutputFilter proxy-html
         ProxyHTMLDoctype XHTML Legacy
-        ProxyHTMLURLMap /gscf-<%= scope.lookupvar('phenotypedb::phenotypedbapp::phenotypedbwarid') %>/ /
+        ProxyHTMLURLMap /gscf-<%= phenotypedbwarid %>/ /
     </Location>
 
     <Proxy balancer://gscf-cluster>
-        BalancerMember ajp://localhost:8<%= scope.lookupvar('phenotypedb::phenotypedbapp::number') %>09
+        BalancerMember ajp://localhost:8<%= number %>09
     </Proxy>
 </VirtualHost>
