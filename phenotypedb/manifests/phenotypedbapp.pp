@@ -1,6 +1,6 @@
 # Custom type. Adds a new phenotypedbapp resource to the system.
 #
-# NB: Automation of : https://github.com/thehyve/GSCF/blob/master/INSTALLATION.md
+# NB: Automation of steps described in : https://github.com/thehyve/GSCF/blob/master/INSTALLATION.md
 #
 # == Parameters:
 #
@@ -11,24 +11,28 @@
 # $adminuserpwd:: (optional, defaults to 'admin123') app admin password
 # $modules:: (optional, defaults to ['sam', 'metabolomics'] ) array with list of extra modules to install
 #
-class phenotypedb::phenotypedbapp (
+define phenotypedb::phenotypedbapp (
     $databasename     = 'gscfwww',
     $dbusername       = 'gscf',
     $dbuserpassword,
-    $appurl,          /* include final slash */
+    $appurl,          /* include final slash, used in grails & gscf config file  */
     $vhost_servername,
+    $vhost_serveraliases, /* e.g. 'test.gscf.mysite.com' or an array of different aliases */
+    $vhost_port       = 80,
     $adminuserpwd     = 'admin123',
     $modules          = ['sam','metabolomics'],
     $phenotypedbwarid = '17',
+    $instancename, /* e.g. 'testserver1' cases where we want multiple instances of gscf on the same server */
     $system_user      = 'phenotype',
-    $number           = 0,
-    $memory           = '512m',
+    $number           = 0, /* related to tomcat port, but you can read this as the "server number", i.e. first server is 0, next one is 1, etc */
+    $memory           = '512m', /* max memory size to allocate for tomcat */
     $webapp_base      = '/home'
 ) {
+    # the dependencies:
     require phenotypedb
     require apache::mod::proxy_http
-    include postgresql::server
-
+    require postgresql::server
+    
     # make database instance in postgresql with name $databasename,
     # and add the user defined in $dbusername
     postgresql::db { $databasename:
@@ -36,21 +40,22 @@ class phenotypedb::phenotypedbapp (
         password => $dbuserpassword,
     }
 
+
+    # add and configure tomcat instance for $system_user and deploy the phenotype .war to 
+    # the correct tomcat location: 
     $tomcat_home = "/home/$system_user"
-
-
     $temporary_dir  = "/tmp"
     $deployment_dir = "$tomcat_home/tomcat/webapps"
-    $downloaded_war = "$temporary_dir/gscf-${phenotypedbwarid}.war"
-    $deployed_war   = "$deployment_dir/gscf-${phenotypedbwarid}.war"
-    $download_url   = "https://trac.nbic.nl/gscf/downloads/${phenotypedbwarid}"
-
+    $downloaded_war = "$temporary_dir/gscf-${instancename}.war"
+    $deployed_war   = "$deployment_dir/gscf-${instancename}.war"
+    $download_url   = "https://trac.nbic.nl/gscf/downloads/${phenotypedbwarid}"    
+        
     tomcat::webapp { $system_user:
-        username        => $system_user,
+        username        => $system_user,   # info: the tomcat::webapp script already ensures user is created as well 
         webapp_base     => $webapp_base,
         number          => $number,
         java_opts       => "-server -Dorg.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER=true -Dmail.mime.decodeparameters=true -Xms${memory} -Xmx${memory} -XX:MaxPermSize=128m -Djava.awt.headless=true",
-    }
+    } 
     ->
     file { "$tomcat_home/.gscf":
         ensure  => 'directory',
@@ -65,7 +70,8 @@ class phenotypedb::phenotypedbapp (
         owner   => $system_user,
     }
     ->
-    exec { "download-phenotypedbapp-war":
+    # deploy .war :
+    exec { "download-phenotypedbapp-war-${deployed_war}":
         # don't download it directly to webapps because tomcat will start
         # reading the war before the download is finished and error out on a
         # 'corrupt' zip file
@@ -76,23 +82,20 @@ class phenotypedb::phenotypedbapp (
         timeout => 1200,
     }
 
-    apache::mod { 'rewrite': }
-    ->
-    apache::mod { 'proxy_balancer': }
-    ->
-    apache::mod { 'proxy_ajp': }
-    ->
-    apache::mod { 'proxy_html': }
-    ->
-    apache::vhost::proxy { 'gscf':
+    # these are set here as they are also used in the template further below:
+    $vhost_name = '*'
+    $serveraliases = $vhost_serveraliases
+    $vhost_accessLog = true
+    $vhost_dest = "balancer://gscf-cluster/gscf-$instancename/"
+    # make sure necessary apache mods are available and 
+    # add new virtual host in apache:  
+    apache_ext::vhost::proxy { $instancename:
         servername => $vhost_servername,
-        port       => 80,
-        dest       => "balancer://gscf-cluster/gscf-$phenotypedbwarid/",
-        #dest       => "http://localhost:8080/gscf-${phenotypedbwarid}",
-        vhost_name => '*',
-        template   => 'phenotypedb/gscf_site_apache.conf.erb',
+        port       => $vhost_port,
+        dest       => $vhost_dest,
+        vhost_name => $vhost_name,
+        configuration_content   => template("phenotypedb/gscf_site_apache.conf.erb"),
     }
-
 
   # install modules (sam, metabolomics, etc)
   # TODO
