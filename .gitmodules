@@ -1,0 +1,3 @@
+[submodule "modules/apache_ext"]
+	path = modules/apache_ext
+	url = https://github.com/thehyve/puppet-apache-ext.git
