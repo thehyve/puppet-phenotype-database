@@ -34,12 +34,12 @@ NameVirtualHost <%= vhost_name %>:<%= vhost_port %>
 
     ProxyStatus On
     ProxyPass / <%= vhost_dest %> stickysession=JSESSIONID|jsessionid nofailover=On
-    ProxyPassReverseCookiePath /gscf-<%= phenotypedbwarid %> /
+    ProxyPassReverseCookiePath /gscf-<%= instancename %> /
 
     <Location />
         SetOutputFilter proxy-html
         ProxyHTMLDoctype XHTML Legacy
-        ProxyHTMLURLMap /gscf-<%= phenotypedbwarid %>/ /
+        ProxyHTMLURLMap /gscf-<%= instancename %>/ /
     </Location>
 
     <Proxy balancer://gscf-cluster>
