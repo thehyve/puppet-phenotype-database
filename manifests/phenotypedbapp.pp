@@ -48,7 +48,7 @@ define phenotypedb::phenotypedbapp (
     $deployment_dir = "$tomcat_home/tomcat/webapps"
     $downloaded_war = "$temporary_dir/gscf-${instancename}.war"
     $deployed_war   = "$deployment_dir/gscf-${instancename}.war"
-    $download_url   = "https://ci.ctmmtrait.nl/browse/PD-PDBM/latest/artifact/shared/PhenotypeDatabase-war/gscf-0.9.1.3.war"    
+    $download_url   = "https://ci.ctmmtrait.nl/browse/PD-PDBM/latest/artifact/shared/PhenotypeDatabase-war/gscf-0.9.1.5.war"    
         
     tomcat::webapp { $system_user:
         username        => $system_user,   # info: the tomcat::webapp script already ensures user is created as well 
