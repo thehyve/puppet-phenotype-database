@@ -27,7 +27,7 @@ define phenotypedb::phenotypedbapp (
     $number           = 0, /* related to tomcat port, but you can read this as the "server number", i.e. first server is 0, next one is 1, etc */
     $memory           = '512m', /* max memory size to allocate for tomcat */
     $webapp_base      = '/home'
-    $uploaddir        = '/phenotype/uploads'
+    $uploaddir        = '/home/phenotype/uploads'
 ) {
     # the dependencies:
     require phenotypedb
