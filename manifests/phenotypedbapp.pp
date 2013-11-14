@@ -12,22 +12,23 @@
 # $modules:: (optional, defaults to ['sam', 'metabolomics'] ) array with list of extra modules to install
 #
 define phenotypedb::phenotypedbapp (
-    $databasename     = 'gscfwww',
-    $dbusername       = 'gscf',
+    $databasename       = 'gscfwww',
+    $dbusername         = 'gscf',
     $dbuserpassword,
     $appurl,          /* include final slash, used in grails & gscf config file  */
     $vhost_servername,
     $vhost_serveraliases, /* e.g. 'test.gscf.mysite.com' or an array of different aliases */
-    $vhost_port       = 80,
-    $adminuserpwd     = 'admin123',
-    $modules          = ['sam','metabolomics'],
-    $phenotypedbwarid = '17',
+    $vhost_port         = 80,
+    $adminuserpwd       = 'admin123',
+    $modules            = ['sam','metabolomics'],
+    $phenotypedbwarid   = '17',
     $instancename, /* e.g. 'testserver1' cases where we want multiple instances of gscf on the same server */
-    $system_user      = 'phenotype',
-    $number           = 0, /* related to tomcat port, but you can read this as the "server number", i.e. first server is 0, next one is 1, etc */
-    $memory           = '512m', /* max memory size to allocate for tomcat */
-    $webapp_base      = '/home',
-    $uploaddir        = '/home/phenotype/uploads'
+    $system_user        = 'phenotype',
+    $number             = 0, /* related to tomcat port, but you can read this as the "server number", i.e. first server is 0, next one is 1, etc */
+    $memory             = '512m', /* max memory size to allocate for tomcat */
+    $webapp_base        = '/home',
+    $uploaddir          = '/home/phenotype/uploads',
+    $metabocloud_domain = ''
 ) {
     # the dependencies:
     require phenotypedb
@@ -100,4 +101,20 @@ define phenotypedb::phenotypedbapp (
 
   # install modules (sam, metabolomics, etc)
   # TODO
+
+  install_modules { $modules:
+    metabocloud_domain => $metabocloud_domain
+  }
+
+}
+
+define install_modules($metabocloud_domain) {
+    case $name {
+        'metabocloud': {
+            metabocloud::install { "metabocloud": 
+                destination => "/var/www/${metabocloud_domain}/",
+                domain      => $metabocloud_domain
+            }
+        }
+    }
 }
