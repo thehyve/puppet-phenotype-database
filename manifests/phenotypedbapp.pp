@@ -20,7 +20,7 @@ define phenotypedb::phenotypedbapp (
     $vhost_serveraliases, /* e.g. 'test.gscf.mysite.com' or an array of different aliases */
     $vhost_port         = 80,
     $adminuserpwd       = 'admin123',
-    $modules            = ['sam','metabolomics'],
+    $modules            = ['sam'],
     $phenotypedbwarid   = '17',
     $instancename, /* e.g. 'testserver1' cases where we want multiple instances of gscf on the same server */
     $system_user        = 'phenotype',
@@ -28,7 +28,7 @@ define phenotypedb::phenotypedbapp (
     $memory             = '512m', /* max memory size to allocate for tomcat */
     $webapp_base        = '/home',
     $uploaddir          = '/home/phenotype/uploads',
-    $metabocloud_domain = ''
+    $base_domain        = ''
 ) {
     # the dependencies:
     require phenotypedb
@@ -78,7 +78,7 @@ define phenotypedb::phenotypedbapp (
         # reading the war before the download is finished and error out on a
         # 'corrupt' zip file
         command => "/usr/bin/wget -O '${downloaded_war}' '${download_url}' \
-                   && find '$deployment_dir' -name '*.war' -delete \
+                   && find '$deployment_dir' -name 'gscf-${instancename}.war' -delete \
                    && mv '${downloaded_war}' '${deployed_war}'",
         creates => $deployed_war,
         timeout => 1200,
@@ -99,21 +99,25 @@ define phenotypedb::phenotypedbapp (
         configuration_content   => template("phenotypedb/gscf_site_apache.conf.erb"),
     }
 
-  # install modules (sam, metabolomics, etc)
-  # TODO
-
   install_modules { $modules:
-    metabocloud_domain => $metabocloud_domain
+    base_domain => $base_domain,
+    system_user => $system_user
   }
 
 }
 
-define install_modules($metabocloud_domain) {
+define install_modules($base_domain, $system_user) {
     case $name {
         'metabocloud': {
             metabocloud::install { "metabocloud": 
-                destination => "/var/www/${metabocloud_domain}/",
-                domain      => $metabocloud_domain
+                destination => "/var/www/metabocloud.$base_domain/",
+                domain      => "metabocloud.$base_domain"
+            }
+        }
+        'metabolomics': {
+            metabolomics_module::install { "metabolomics_module":
+                domain      => "metabolomics.$base_domain",
+                system_user => $system_user
             }
         }
     }
