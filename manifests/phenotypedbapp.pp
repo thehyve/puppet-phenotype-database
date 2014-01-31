@@ -20,7 +20,7 @@ define phenotypedb::phenotypedbapp (
     $vhost_serveraliases, /* e.g. 'test.gscf.mysite.com' or an array of different aliases */
     $vhost_port         = 80,
     $adminuserpwd       = 'admin123',
-    $modules            = ['sam'],
+    $modules            = [],
     $phenotypedbwarid   = '17',
     $instancename, /* e.g. 'testserver1' cases where we want multiple instances of gscf on the same server */
     $system_user        = 'phenotype',
@@ -56,7 +56,7 @@ define phenotypedb::phenotypedbapp (
         username        => $system_user,   # info: the tomcat::webapp script already ensures user is created as well 
         webapp_base     => $webapp_base,
         number          => $number,
-        java_opts       => "-server -Dorg.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER=true -Dmail.mime.decodeparameters=true -Xms${memory} -Xmx${memory} -XX:MaxPermSize=128m -Djava.awt.headless=true",
+        java_opts       => "-server -Dorg.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER=true -Dmail.mime.decodeparameters=true -Xms${memory} -Xmx${memory} -XX:MaxPermSize=256m -Djava.awt.headless=true",
     } 
     ->
     file { "$tomcat_home/.gscf":
@@ -110,15 +110,33 @@ define install_modules($base_domain, $system_user) {
     case $name {
         'metabocloud': {
             metabocloud::install { "metabocloud": 
-                destination => "/var/www/metabocloud.$base_domain/",
-                domain      => "metabocloud.$base_domain"
+                destination => "/var/www/metabocloud.org/",
+                domain      => "www.metabocloud.org"
             }
         }
         'metabolomics': {
             metabolomics_module::install { "metabolomics_module":
                 domain      => "metabolomics.$base_domain",
+                base_url    => $base_domain,
                 system_user => $system_user
             }
+        }
+        'sam': {
+            $vhost_port = 80
+    $vhost_name = '*'
+    $serveraliases = ''
+    $vhost_accessLog = true
+    $vhost_servername = "sam.$base_domain"
+    $vhost_dest = "balancer://gscf-cluster/sam/"
+    $number = "1"
+    $instancename = "sam"
+    apache_ext::vhost::proxy { "sam":
+        servername => "sam.$base_domain",
+        port       => 80,
+        dest       => "balancer://gscf-cluster/sam/",
+        vhost_name => '*', 
+        configuration_content   => template("phenotypedb/sam_conf.erb"),
+    }
         }
     }
 }

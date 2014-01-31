@@ -1,0 +1,48 @@
+NameVirtualHost <%= vhost_name %>:<%= vhost_port %>
+<VirtualHost <%= vhost_name %>:<%= vhost_port %>>
+    ServerName <%= vhost_servername %>
+    <% if serveraliases.is_a? Array %>
+        <% serveraliases.each do |name| %><%= "  ServerAlias #{name}\n" %><% end %>
+    <% elsif serveraliases != '' %>
+        <%= "  ServerAlias #{serveraliases}" %>
+    <% end %>
+
+    ErrorLog /var/log/<%= scope.lookupvar("apache::params::apache_name") %>/<%= vhost_servername %><%= number %>_error.log
+    LogLevel warn
+    <% if vhost_accessLog -%>
+        CustomLog /var/log/<%= scope.lookupvar("apache::params::apache_name") %>/<%= vhost_servername %><%= number %>_access.log combined
+    <% end -%>
+
+    RewriteEngine on
+
+    # keep listening for the serveralias, but redirect to
+    # servername instead to make sure only one user session
+    # is created (tomcat will create one user session per
+    # domain which may lead to two (or more) usersessions
+    # depending on the number of serveraliases)
+    # see gscf ticket #321
+    RewriteCond %{HTTP_HOST} !^<%= vhost_servername %>$ [NC]
+    RewriteRule .* http://<%= vhost_servername %>$0 [R=301,QSA,L]
+
+    # rewrite the /sam/ part of the url                
+    RewriteRule ^/sam/(.*) /$1 [L,PT,NC,NE]
+
+    <Proxy *>
+        Order deny,allow
+        Allow from all
+    </Proxy>
+
+    ProxyStatus On
+    ProxyPass / <%= vhost_dest %> stickysession=JSESSIONID|jsessionid nofailover=On
+    ProxyPassReverseCookiePath /<%= instancename %> /
+
+    <Location />
+        SetOutputFilter proxy-html
+        ProxyHTMLDoctype XHTML Legacy
+        ProxyHTMLURLMap /<%= instancename %>/ /
+    </Location>
+
+    <Proxy balancer://gscf-cluster>
+        BalancerMember ajp://localhost:8<%= number %>09
+    </Proxy>
+</VirtualHost>
