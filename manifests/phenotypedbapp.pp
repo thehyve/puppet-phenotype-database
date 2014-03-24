@@ -27,7 +27,6 @@ define phenotypedb::phenotypedbapp (
     $number             = 0, /* related to tomcat port, but you can read this as the "server number", i.e. first server is 0, next one is 1, etc */
     $memory             = '512m', /* max memory size to allocate for tomcat */
     $webapp_base        = '/home',
-    $uploaddir          = '/home/phenotype/uploads',
     $base_domain        = ''
 ) {
     # the dependencies:
@@ -50,7 +49,8 @@ define phenotypedb::phenotypedbapp (
     $deployment_dir = "$tomcat_home/tomcat/webapps"
     $downloaded_war = "$temporary_dir/gscf-${instancename}.war"
     $deployed_war   = "$deployment_dir/gscf-${instancename}.war"
-    $download_url   = "https://ci.ctmmtrait.nl/browse/PD-PDBM/latest/artifact/shared/PhenotypeDatabase-war/gscf-0.9.1.5.war"    
+    $download_url   = "https://ci.ctmmtrait.nl/browse/PD-PDBM/latest/artifact/shared/PhenotypeDatabase-war/gscf-0.9.1.5.war"  
+    $uploaddir      = "$tomcat_home/uploads" 
         
     tomcat::webapp { $system_user:
         username        => $system_user,   # info: the tomcat::webapp script already ensures user is created as well 
@@ -82,6 +82,11 @@ define phenotypedb::phenotypedbapp (
                    && mv '${downloaded_war}' '${deployed_war}'",
         creates => $deployed_war,
         timeout => 1200,
+    }
+
+    file { "$uploaddir":
+	ensure => 'directory',
+	owner  => $system_user
     }
 
     # these are set here as they are also used in the template further below:
