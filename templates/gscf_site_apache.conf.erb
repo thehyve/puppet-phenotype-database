@@ -33,8 +33,9 @@ NameVirtualHost <%= vhost_name %>:<%= vhost_port %>
     </Proxy>
 
     ProxyStatus On
-    ProxyPass / <%= vhost_dest %> stickysession=JSESSIONID|jsessionid nofailover=On
+    ProxyPass / <%= vhost_dest %> stickysession=JSESSIONID|jsessionid nofailover=On timeout=7200
     ProxyPassReverseCookiePath /gscf-<%= instancename %> /
+    ProxyTimeout 7200
 
     <Location />
         SetOutputFilter proxy-html
@@ -44,5 +45,6 @@ NameVirtualHost <%= vhost_name %>:<%= vhost_port %>
 
     <Proxy balancer://gscf-cluster>
         BalancerMember ajp://localhost:8<%= number %>09
+        ProxySet timeout=7200
     </Proxy>
 </VirtualHost>
