@@ -14,20 +14,20 @@
 define phenotypedb::phenotypedbapp (
     $databasename       = 'gscfwww',
     $dbusername         = 'gscf',
-    $dbuserpassword,
-    $appurl,          /* include final slash, used in grails & gscf config file  */
-    $vhost_servername,
-    $vhost_serveraliases, /* e.g. 'test.gscf.mysite.com' or an array of different aliases */
     $vhost_port         = 80,
     $adminuserpwd       = 'admin123',
     $modules            = [],
     $phenotypedbwarid   = '17',
-    $instancename, /* e.g. 'testserver1' cases where we want multiple instances of gscf on the same server */
     $system_user        = 'phenotype',
     $number             = 0, /* related to tomcat port, but you can read this as the "server number", i.e. first server is 0, next one is 1, etc */
     $memory             = '512m', /* max memory size to allocate for tomcat */
     $webapp_base        = '/home',
-    $base_domain        = ''
+    $base_domain        = '',
+    $instancename,        /* e.g. 'testserver1' cases where we want multiple instances of gscf on the same server */
+    $vhost_serveraliases, /* e.g. 'test.gscf.mysite.com' or an array of different aliases */
+    $dbuserpassword,
+    $appurl,              /* include final slash, used in grails & gscf config file  */
+    $vhost_servername,
 ) {
     # the dependencies:
     require phenotypedb
@@ -44,13 +44,13 @@ define phenotypedb::phenotypedbapp (
 
     # add and configure tomcat instance for $system_user and deploy the phenotype .war to 
     # the correct tomcat location: 
-    $tomcat_home = "/home/$system_user"
+    $tomcat_home    = "/home/$system_user"
     $temporary_dir  = "/tmp"
     $deployment_dir = "$tomcat_home/tomcat/webapps"
     $downloaded_war = "$temporary_dir/gscf-${instancename}.war"
     $deployed_war   = "$deployment_dir/gscf-${instancename}.war"
-    $download_url   = "https://ci.ctmmtrait.nl/browse/PD-PDBM/latest/artifact/shared/PhenotypeDatabase-war/gscf-0.9.1.5.war"  
-    $uploaddir      = "$tomcat_home/uploads" 
+    $download_url   = "https://ci.ctmmtrait.nl/browse/PD-PDBM/latest/artifact/shared/PhenotypeDatabase-war/gscf-0.9.1.5.war"
+    $uploaddir      = "$tomcat_home/uploads"
         
     tomcat::webapp { $system_user:
         username        => $system_user,   # info: the tomcat::webapp script already ensures user is created as well 
@@ -85,30 +85,29 @@ define phenotypedb::phenotypedbapp (
     }
 
     file { "$uploaddir":
-	ensure => 'directory',
-	owner  => $system_user
+        ensure => 'directory',
+        owner  => $system_user
     }
 
     # these are set here as they are also used in the template further below:
-    $vhost_name = '*'
-    $serveraliases = $vhost_serveraliases
+    $vhost_name      = '*'
+    $serveraliases   = $vhost_serveraliases
     $vhost_accessLog = true
-    $vhost_dest = "balancer://gscf-cluster/gscf-$instancename/"
+    $vhost_dest      = "balancer://gscf-cluster/gscf-$instancename/"
     # make sure necessary apache mods are available and 
     # add new virtual host in apache:  
     apache_ext::vhost::proxy { $instancename:
-        servername => $vhost_servername,
-        port       => $vhost_port,
-        dest       => $vhost_dest,
-        vhost_name => $vhost_name,
-        configuration_content   => template("phenotypedb/gscf_site_apache.conf.erb"),
+        servername            => $vhost_servername,
+        port                  => $vhost_port,
+        dest                  => $vhost_dest,
+        vhost_name            => $vhost_name,
+        configuration_content => template("phenotypedb/gscf_site_apache.conf.erb"),
     }
 
-  install_modules { $modules:
-    base_domain => $base_domain,
-    system_user => $system_user
-  }
-
+    install_modules { $modules:
+        base_domain => $base_domain,
+        system_user => $system_user
+    }
 }
 
 define install_modules($base_domain, $system_user) {
@@ -127,21 +126,22 @@ define install_modules($base_domain, $system_user) {
             }
         }
         'sam': {
-            $vhost_port = 80
-    $vhost_name = '*'
-    $serveraliases = ''
-    $vhost_accessLog = true
-    $vhost_servername = "sam.$base_domain"
-    $vhost_dest = "balancer://gscf-cluster/sam/"
-    $number = "1"
-    $instancename = "sam"
-    apache_ext::vhost::proxy { "sam":
-        servername => "sam.$base_domain",
-        port       => 80,
-        dest       => "balancer://gscf-cluster/sam/",
-        vhost_name => '*', 
-        configuration_content   => template("phenotypedb/sam_conf.erb"),
-    }
+            $vhost_port       = 80
+            $vhost_name       = '*'
+            $serveraliases    = ''
+            $vhost_accessLog  = true
+            $vhost_servername = "sam.$base_domain"
+            $vhost_dest       = "balancer://gscf-cluster/sam/"
+            $number           = "1"
+            $instancename     = "sam"
+
+            apache_ext::vhost::proxy { "sam":
+                servername            => "sam.$base_domain",
+                port                  => 80,
+                dest                  => "balancer://gscf-cluster/sam/",
+                vhost_name            => '*',
+                configuration_content => template("phenotypedb/sam_conf.erb"),
+            }
         }
     }
 }
