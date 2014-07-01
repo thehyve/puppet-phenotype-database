@@ -28,6 +28,7 @@ class phenotypedb ($localBioPortal = false) {
     include 'apache_ext::mod::proxy::balancer'
     include 'apache_ext::mod::proxy::ajp'
     include 'apache_ext::mod::proxy::html'
+    include 'apache_ext::mod::headers'
 
     include 'tomcat'
 

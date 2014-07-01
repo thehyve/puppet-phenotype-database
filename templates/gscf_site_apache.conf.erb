@@ -1,11 +1,21 @@
-NameVirtualHost <%= vhost_name %>:<%= vhost_port %>
-<VirtualHost <%= vhost_name %>:<%= vhost_port %>>
+NameVirtualHost <%= vhost_name %>:<%= port %>
+<VirtualHost <%= vhost_name %>:<%= port %>>
     ServerName <%= vhost_servername %>
     <% if serveraliases.is_a? Array %>
         <% serveraliases.each do |name| %><%= "  ServerAlias #{name}\n" %><% end %>
     <% elsif serveraliases != '' %>
         <%= "  ServerAlias #{serveraliases}" %>
     <% end %>
+
+    <% if @ssl == true -%>
+        SSLEngine on
+        SSLCertificateChainFile <%= @ssl_certificate || "#{scope.lookupvar('apache::params::ssl_path')}/certs/pl.cert" %>
+        SSLCertificateFile <%= @ssl_certificate || "#{scope.lookupvar('apache::params::ssl_path')}/certs/pl.cert" %>
+        SSLCertificateKeyFile <%= @ssl_priv_key || "#{scope.lookupvar('apache::params::ssl_path')}/private/pl.key" %>
+        Header edit Location ^http: https:
+        Header edit Set-Cookie "(?i); ?secure\b" ""
+        Header edit Set-Cookie $ "; secure"
+    <% end -%>
 
     ErrorLog /var/log/<%= scope.lookupvar("apache::params::apache_name") %>/<%= vhost_servername %><%= number %>_error.log
     LogLevel warn
@@ -22,7 +32,7 @@ NameVirtualHost <%= vhost_name %>:<%= vhost_port %>
     # depending on the number of serveraliases)
     # see gscf ticket #321
     RewriteCond %{HTTP_HOST} !^<%= vhost_servername %>$ [NC]
-    RewriteRule .* http://<%= vhost_servername %>$0 [R=301,QSA,L]
+    RewriteRule .* http<%= @ssl ? 's' : '' %>://<%= vhost_servername %>$0 [R=301,QSA,L]
 
     # rewrite the /gscf-a.b.c-environment/ part of the url                
     RewriteRule ^/gscf-[^/]+/(.*) /$1 [L,PT,NC,NE]

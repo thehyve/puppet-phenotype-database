@@ -12,22 +12,25 @@
 # $modules:: (optional, defaults to ['sam', 'metabolomics'] ) array with list of extra modules to install
 #
 define phenotypedb::phenotypedbapp (
-    $databasename       = 'gscfwww',
-    $dbusername         = 'gscf',
-    $vhost_port         = 80,
-    $adminuserpwd       = 'admin123',
-    $modules            = [],
-    $phenotypedbwarid   = '17',
-    $system_user        = 'phenotype',
-    $number             = 0, /* related to tomcat port, but you can read this as the "server number", i.e. first server is 0, next one is 1, etc */
-    $memory             = '512m', /* max memory size to allocate for tomcat */
-    $webapp_base        = '/home',
-    $base_domain        = '',
+    $vhost_servername,
+    $dbuserpassword,
     $instancename,        /* e.g. 'testserver1' cases where we want multiple instances of gscf on the same server */
     $vhost_serveraliases, /* e.g. 'test.gscf.mysite.com' or an array of different aliases */
-    $dbuserpassword,
     $appurl,              /* include final slash, used in grails & gscf config file  */
-    $vhost_servername,
+    $databasename     = 'gscfwww',
+    $dbusername       = 'gscf',
+    $vhost_port       = undef,
+    $adminuserpwd     = 'admin123',
+    $modules          = [],
+    $phenotypedbwarid = '17',
+    $system_user      = 'phenotype',
+    $number           = 0, /* related to tomcat port, but you can read this as the "server number", i.e. first server is 0, next one is 1, etc */
+    $memory           = '512m', /* max memory size to allocate for tomcat */
+    $webapp_base      = '/home',
+    $base_domain      = '',
+    $ssl              = false,
+    $ssl_cert         = undef,
+    $ssl_key          = undef,
 ) {
     # the dependencies:
     require phenotypedb
@@ -94,14 +97,28 @@ define phenotypedb::phenotypedbapp (
     $serveraliases   = $vhost_serveraliases
     $vhost_accessLog = true
     $vhost_dest      = "balancer://gscf-cluster/gscf-$instancename/"
+    $port            = $vhost_port ? {
+                           undef   => $ssl ? { true => 443, default => 80 },
+                           default => $vhost_port,
+                       }
     # make sure necessary apache mods are available and 
     # add new virtual host in apache:  
     apache_ext::vhost::proxy { $instancename:
         servername            => $vhost_servername,
-        port                  => $vhost_port,
         dest                  => $vhost_dest,
         vhost_name            => $vhost_name,
         configuration_content => template("phenotypedb/gscf_site_apache.conf.erb"),
+        port                  => $port,
+    }
+
+    if $ssl {
+        apache::vhost::redirect { "fw-$instancename":
+            servername    => $vhost_servername,
+            serveraliases => '',
+            vhost_name    => $vhost_name,
+            port          => '80',
+            dest          => "https://${vhost_servername}",
+        }
     }
 
     install_modules { $modules:
