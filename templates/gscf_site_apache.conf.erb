@@ -1,27 +1,5 @@
-NameVirtualHost <%= vhost_name %>:<%= port %>
-<VirtualHost <%= vhost_name %>:<%= port %>>
-    ServerName <%= vhost_servername %>
-    <% if serveraliases.is_a? Array %>
-        <% serveraliases.each do |name| %><%= "  ServerAlias #{name}\n" %><% end %>
-    <% elsif serveraliases != '' %>
-        <%= "  ServerAlias #{serveraliases}" %>
-    <% end %>
-
-    <% if @ssl == true -%>
-        SSLEngine on
-        SSLCertificateChainFile <%= @ssl_certificate || "#{scope.lookupvar('apache::params::ssl_path')}/certs/pl.cert" %>
-        SSLCertificateFile <%= @ssl_certificate || "#{scope.lookupvar('apache::params::ssl_path')}/certs/pl.cert" %>
-        SSLCertificateKeyFile <%= @ssl_priv_key || "#{scope.lookupvar('apache::params::ssl_path')}/private/pl.key" %>
-        Header edit Location ^http: https:
-        Header edit Set-Cookie "(?i); ?secure\b" ""
-        Header edit Set-Cookie $ "; secure"
-    <% end -%>
-
-    ErrorLog /var/log/<%= scope.lookupvar("apache::params::apache_name") %>/<%= vhost_servername %><%= number %>_error.log
-    LogLevel warn
-    <% if vhost_accessLog -%>
-        CustomLog /var/log/<%= scope.lookupvar("apache::params::apache_name") %>/<%= vhost_servername %><%= number %>_access.log combined
-    <% end -%>
+<VirtualHost <%= @vhost_name %>:<%= @port %>>
+    <%= scope.function_template(['apache_ext/_vhost-common.erb']) %>
 
     RewriteEngine on
 
@@ -31,30 +9,25 @@ NameVirtualHost <%= vhost_name %>:<%= port %>
     # domain which may lead to two (or more) usersessions
     # depending on the number of serveraliases)
     # see gscf ticket #321
-    RewriteCond %{HTTP_HOST} !^<%= vhost_servername %>$ [NC]
-    RewriteRule .* http<%= @ssl ? 's' : '' %>://<%= vhost_servername %>$0 [R=301,QSA,L]
+    RewriteCond %{HTTP_HOST} !^<%= @srvname %>$ [NC]
+    RewriteRule .* http<%= @ssl ? 's' : '' %>://<%= @srvname %>$0 [R=301,QSA,L]
 
     # rewrite the /gscf-a.b.c-environment/ part of the url                
     RewriteRule ^/gscf-[^/]+/(.*) /$1 [L,PT,NC,NE]
 
-    <Proxy *>
-        Order deny,allow
-        Allow from all
-    </Proxy>
-
     ProxyStatus On
-    ProxyPass / <%= vhost_dest %> stickysession=JSESSIONID|jsessionid nofailover=On timeout=7200
-    ProxyPassReverseCookiePath /gscf-<%= instancename %> /
+    ProxyPass / <%= @dest %> stickysession=JSESSIONID|jsessionid nofailover=On timeout=7200
+    ProxyPassReverseCookiePath /gscf-<%= @extra_variables['instancename'] %> /
     ProxyTimeout 7200
 
     <Location />
         SetOutputFilter proxy-html
         ProxyHTMLDoctype XHTML Legacy
-        ProxyHTMLURLMap /gscf-<%= instancename %>/ /
+        ProxyHTMLURLMap /gscf-<%= @extra_variables['instancename'] %>/ /
     </Location>
 
     <Proxy balancer://gscf-cluster>
-        BalancerMember ajp://localhost:8<%= number %>09
+        BalancerMember ajp://localhost:<%= @extra_variables['ajp_port'] %>
         ProxySet timeout=7200
     </Proxy>
 </VirtualHost>

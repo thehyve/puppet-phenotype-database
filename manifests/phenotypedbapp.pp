@@ -92,54 +92,57 @@ define phenotypedb::phenotypedbapp (
         owner  => $system_user
     }
 
-    # these are set here as they are also used in the template further below:
-    $vhost_name      = '*'
-    $serveraliases   = $vhost_serveraliases
-    $vhost_accessLog = true
-    $vhost_dest      = "balancer://gscf-cluster/gscf-$instancename/"
-    $port            = $vhost_port ? {
-                           undef   => $ssl ? { true => 443, default => 80 },
-                           default => $vhost_port,
-                       }
-    # make sure necessary apache mods are available and 
-    # add new virtual host in apache:  
-    apache_ext::vhost::proxy { $instancename:
-        servername            => $vhost_servername,
-        dest                  => $vhost_dest,
-        vhost_name            => $vhost_name,
-        configuration_content => template("phenotypedb/gscf_site_apache.conf.erb"),
-        port                  => $port,
+    $port = $vhost_port ? {
+        undef   => $ssl ? { true => 443, default => 80 },
+        default => $vhost_port,
     }
-
-    if $ssl {
-        apache::vhost::redirect { "fw-$instancename":
-            servername    => $vhost_servername,
-            serveraliases => '',
-            vhost_name    => $vhost_name,
-            port          => '80',
-            dest          => "https://${vhost_servername}",
-        }
+    apache_ext::vhost::proxy_ex { $instancename:
+        vhost_servername    => $vhost_servername,
+        vhost_serveraliases => $serveraliases,
+        dest                => "balancer://gscf-cluster/gscf-$instancename/",
+        port                => $port,
+        enable_ssl          => $ssl,
+        ssl_cert            => $ssl_cert,
+        ssl_key             => $ssl_key,
+        priority            => 10,
+        template            => 'phenotypedb/gscf_site_apache.conf.erb',
+        extra_variables     => {
+            ajp_port     => "8${number}09",
+            instancename => $instancename,
+        },
     }
 
     install_modules { $modules:
         base_domain => $base_domain,
-        system_user => $system_user
+        system_user => $system_user,
+        ssl         => $ssl,
+        ssl_cert    => $ssl_cert,
+        ssl_key     => $ssl_key,
     }
 }
 
-define install_modules($base_domain, $system_user) {
+define install_modules(
+    $base_domain,
+    $system_user,
+    $ssl      = false,
+    $ssl_cert = undef,
+    $ssl_key  = undef,
+) {
     case $name {
         'metabocloud': {
             metabocloud::install { "metabocloud": 
                 destination => "/var/www/metabocloud.org/",
-                domain      => "www.metabocloud.org"
+                domain      => "www.metabocloud.org",
             }
         }
         'metabolomics': {
             metabolomics_module::install { "metabolomics_module":
                 domain      => "metabolomics.$base_domain",
                 base_url    => $base_domain,
-                system_user => $system_user
+                system_user => $system_user,
+                ssl         => $ssl,
+                ssl_cert    => $ssl_cert,
+                ssl_key     => $ssl_key,
             }
         }
         'sam': {
