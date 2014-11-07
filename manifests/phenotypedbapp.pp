@@ -31,6 +31,7 @@ define phenotypedb::phenotypedbapp (
     $ssl              = false,
     $ssl_cert         = undef,
     $ssl_key          = undef,
+    $metabolomicsdb   = undef,
 ) {
     # the dependencies:
     require phenotypedb
@@ -118,6 +119,8 @@ define phenotypedb::phenotypedbapp (
         ssl         => $ssl,
         ssl_cert    => $ssl_cert,
         ssl_key     => $ssl_key,
+	metadb	    => $metabolomicsdb,
+	number	    => $number,
     }
 }
 
@@ -127,25 +130,29 @@ define install_modules(
     $ssl      = false,
     $ssl_cert = undef,
     $ssl_key  = undef,
+    $metadb   = undef,
+    $number   = undef,
 ) {
     case $name {
-        'metabocloud': {
+        "metabocloud$system_user": {
             metabocloud::install { "metabocloud": 
-                destination => "/var/www/metabocloud.org/",
-                domain      => "www.metabocloud.org",
+                destination => "/var/www/metabocloud.com/",
+                domain      => "www.metabocloud.com",
             }
         }
-        'metabolomics': {
-            metabolomics_module::install { "metabolomics_module":
+        "metabolomics$system_user": {
+            metabolomics_module::install { "metabolomics_module_$system_user":
                 domain      => "metabolomics.$base_domain",
                 base_url    => $base_domain,
                 system_user => $system_user,
                 ssl         => $ssl,
                 ssl_cert    => $ssl_cert,
                 ssl_key     => $ssl_key,
+		metadb	    => $metadb,
+		number	    => $number,
             }
         }
-        'sam': {
+        "sam": {
             $vhost_port       = 80
             $vhost_name       = '*'
             $serveraliases    = ''
