@@ -17,53 +17,61 @@ define phenotypedb::phenotypedbapp (
     $instancename,        /* e.g. 'testserver1' cases where we want multiple instances of gscf on the same server */
     $vhost_serveraliases, /* e.g. 'test.gscf.mysite.com' or an array of different aliases */
     $appurl,              /* include final slash, used in grails & gscf config file  */
-    $databasename     = 'gscfwww',
-    $dbusername       = 'gscf',
-    $vhost_port       = undef,
-    $adminuserpwd     = 'admin123',
-    $modules          = [],
-    $phenotypedbwarid = '17',
-    $system_user      = 'phenotype',
-    $number           = 0, /* related to tomcat port, but you can read this as the "server number", i.e. first server is 0, next one is 1, etc */
-    $memory           = '512m', /* max memory size to allocate for tomcat */
-    $webapp_base      = '/home',
-    $base_domain      = '',
-    $ssl              = false,
-    $ssl_cert         = undef,
-    $ssl_key          = undef,
-    $metabolomicsdb   = undef,
+    $databasename        = 'gscfwww',
+    $dbusername          = 'gscf',
+    $vhost_port          = undef,
+    $adminuserpwd        = 'admin123',
+    $modules             = [],
+
+    $server              = 'https://ci.ctmmtrait.nl',
+    $plan                = 'PD-PDM',
+    $artifact            = 'PhenotypeDatabase-WAR/gscf-0.9.1.3.war',
+    $phenotypedbwarid    = 9,
+
+    $system_user         = 'phenotype',
+    $number              = 0, /* related to tomcat port, but you can read this as the "server number", i.e. first server is 0, next one is 1, etc */
+    $memory              = '512m', /* max memory size to allocate for tomcat */
+    $webapp_base         = '/home',
+    $base_domain         = '',
+    $ssl                 = false,
+    $ssl_cert            = undef,
+    $ssl_key             = undef,
+    $metabolomicsdb      = undef,
     $metabolomicsmongodb = undef,
 ) {
     # the dependencies:
     require phenotypedb
     require apache::mod::proxy_http
-    require postgresql::server
-    
+
     # make database instance in postgresql with name $databasename,
     # and add the user defined in $dbusername
-    postgresql::db { $databasename:
+    postgresql::server::db { $databasename:
         user     => $dbusername,
         password => $dbuserpassword,
     }
 
-
-    # add and configure tomcat instance for $system_user and deploy the phenotype .war to 
-    # the correct tomcat location: 
+    # add and configure tomcat instance for $system_user and deploy the phenotype .war to
+    # the correct tomcat location:
     $tomcat_home    = "/home/$system_user"
-    $temporary_dir  = "/tmp"
-    $deployment_dir = "$tomcat_home/tomcat/webapps"
-    $downloaded_war = "$temporary_dir/gscf-${instancename}.war"
-    $deployed_war   = "$deployment_dir/gscf-${instancename}.war"
-    $download_url   = "https://ci.ctmmtrait.nl/browse/PD-PDBM/latest/artifact/shared/PhenotypeDatabase-war/gscf-0.9.1.5.war"
+    $download_dir   = "/opt/distr"
+    $downloaded_war = "$download_dir/gscf-${instancename}.war"
+    $download_url   = "${server}/browse/$plan-$phenotypedbwarid/artifact/shared/$artifact"
+    # $download_url   = "https://ci.ctmmtrait.nl/browse/PD-PDBM/latest/artifact/shared/PhenotypeDatabase-war/gscf-0.9.1.5.war"
     $uploaddir      = "$tomcat_home/uploads"
-        
-    tomcat::webapp { $system_user:
-        username        => $system_user,   # info: the tomcat::webapp script already ensures user is created as well 
-        webapp_base     => $webapp_base,
-        number          => $number,
-        java_opts       => "-server -Dorg.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER=true -Dmail.mime.decodeparameters=true -Xms${memory} -Xmx${memory} -XX:MaxPermSize=256m -Djava.awt.headless=true",
-    } 
-    ->
+
+    tomcat_distr::webapp { $system_user:
+        username         => $system_user,   # info: the tomcat_distr::webapp script already ensures user is created as well
+        webapp_base      => $webapp_base,
+        number           => $number,
+        source           => $downloaded_war,
+        context          => "gscf-${instancename}",
+        listen_ajp       => true,
+        clean_on_changed => true,
+        java_opts        => "-server -Dorg.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER=true \
+                             -Dmail.mime.decodeparameters=true -Xms${memory} -Xmx${memory} \
+                             -XX:MaxPermSize=256m -Djava.awt.headless=true",
+    }
+
     file { "$tomcat_home/.gscf":
         ensure  => 'directory',
         mode    => '700',
@@ -78,18 +86,19 @@ define phenotypedb::phenotypedbapp (
     }
     ->
     # deploy .war :
-    exec { "download-phenotypedbapp-war-${deployed_war}":
+    exec { "download-phenotypedbapp-war-${downloaded_war}":
         # don't download it directly to webapps because tomcat will start
         # reading the war before the download is finished and error out on a
         # 'corrupt' zip file
-        command => "/usr/bin/wget -O '${downloaded_war}' '${download_url}' \
-                   && find '$deployment_dir' -name 'gscf-${instancename}.war' -delete \
-                   && mv '${downloaded_war}' '${deployed_war}'",
-        creates => $deployed_war,
+        command => "/usr/bin/wget -O '${downloaded_war}' '${download_url}'",
+        cwd     => $download_dir,
+        creates => $downloaded_war,
         timeout => 1200,
     }
+    ->
+    file { $downloaded_war: }
 
-    file { "$uploaddir":
+    file { $uploaddir:
         ensure => 'directory',
         owner  => $system_user
     }
@@ -120,10 +129,10 @@ define phenotypedb::phenotypedbapp (
         ssl         => $ssl,
         ssl_cert    => $ssl_cert,
         ssl_key     => $ssl_key,
-	metadb	    => $metabolomicsdb,
-	metamongodb => $metabolomicsmongodb,
-	number	    => $number,
-	appurl	    => $appurl,
+        metadb      => $metabolomicsdb,
+        metamongodb => $metabolomicsmongodb,
+        number      => $number,
+        appurl      => $appurl,
     }
 }
 

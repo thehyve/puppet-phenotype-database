@@ -30,9 +30,9 @@ class phenotypedb ($localBioPortal = false) {
     include 'apache_ext::mod::proxy::html'
     include 'apache_ext::mod::headers'
 
-    include 'tomcat'
+    apache::mod { ['slotmem_shm', 'lbmethod_byrequests']: }
 
-    include 'postgresql'
+    include 'postgresql::server'
 
     package { 'libnotify-bin': }
 
