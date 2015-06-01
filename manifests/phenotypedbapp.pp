@@ -38,6 +38,8 @@ define phenotypedb::phenotypedbapp (
     $ssl_key             = undef,
     $metabolomicsdb      = undef,
     $metabolomicsmongodb = undef,
+
+    $proxytimeout        = 7200
 ) {
     # the dependencies:
     require phenotypedb
@@ -118,8 +120,9 @@ define phenotypedb::phenotypedbapp (
         priority            => 10,
         template            => 'phenotypedb/gscf_site_apache.conf.erb',
         extra_variables     => {
-            ajp_port     => "8${number}09",
-            instancename => $instancename,
+            ajp_port        => "8${number}09",
+            instancename    => $instancename,
+            timeout         => $proxytimeout
         },
     }
 
