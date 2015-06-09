@@ -57,8 +57,13 @@ define phenotypedb::phenotypedbapp (
     $tomcat_home    = "/home/$system_user"
     $download_dir   = "/opt/distr"
     $downloaded_war = "$download_dir/gscf-${instancename}.war"
-    $download_url   = "${server}/browse/$plan-$phenotypedbwarid/artifact/shared/$artifact"
-    # $download_url   = "https://ci.ctmmtrait.nl/browse/PD-PDBM/latest/artifact/shared/PhenotypeDatabase-war/gscf-0.9.1.5.war"
+    if $phenotypedbwarid == 'latest' {
+        $download_url   = "${server}/browse/$plan/latest/artifact/shared/$artifact"
+    }
+    else {
+        $download_url   = "${server}/browse/$plan-$phenotypedbwarid/artifact/shared/$artifact"
+    }
+
     $uploaddir      = "$tomcat_home/uploads"
 
     tomcat_distr::webapp { $system_user:
