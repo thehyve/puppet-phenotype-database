@@ -16,8 +16,12 @@
     RewriteRule ^/gscf-[^/]+/(.*) /$1 [L,PT,NC,NE]
 
     ProxyStatus On
-    ProxyPass / <%= @dest %> stickysession=JSESSIONID|jsessionid nofailover=On timeout=7200
+    ProxyPass / <%= @dest %> stickysession=JSESSIONID|jsessionid nofailover=On timeout=<%= @extra_variables['timeout'] %>
     ProxyPassReverseCookiePath /gscf-<%= @extra_variables['instancename'] %> /
+
+    # Setting both timeout and proxytimeout is needed to have the timeout function properly
+    # See http://stackoverflow.com/questions/169453/bad-gateway-502-error-with-apache-mod-proxy-and-tomcat
+    Timeout <%= @extra_variables['timeout'] %>
     ProxyTimeout <%= @extra_variables['timeout'] %>
 
     <Location />
@@ -27,7 +31,7 @@
     </Location>
 
     <Proxy balancer://gscf-cluster>
-        BalancerMember ajp://localhost:<%= @extra_variables['ajp_port'] %>
+        BalancerMember ajp://localhost:<%= @extra_variables['ajp_port'] %> keepalive=On ttl=<%= @extra_variables['timeout'] %>
         ProxySet timeout=<%= @extra_variables['timeout'] %>
     </Proxy>
 </VirtualHost>
